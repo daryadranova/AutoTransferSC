@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.8;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract Percentage is Ownable {
+    uint32 count = 0;
+    uint income = 0;
+    uint sum;
+    struct User {
+        address payable _address;
+        uint32 percentage;
+        uint32 id_user;
+    }
+    User[] public users;
+    User[] public temp;
+    
+    event UserAdded(address _who, uint _percent);
+    event MoneyTransfered(address to, uint howMuch);
+    event ValueReceived(address _who, uint amount);
+    
+    function getIncome() public view returns (uint) {
+        return income;
+    }
+
+    function isOwner() internal view returns(bool) {
+        return owner() == msg.sender;
+    }
+
+    function addUser(address payable _who, uint32 _percent) public onlyOwner returns(User[] memory current){
+        require(_percent > 0, "Percent must be more than 0");
+        User memory user = User(_who,_percent,count);
+        temp.push(user);
+        count++;
+        return temp;
+    }
+
+    function delateUser(address _who) public {
+        for(uint i = 0; i < temp.length; i++){
+            if(temp[i]._address == _who){
+                delete temp[i];
+            }
+        }
+     }
+
+    // function get_data_not_cleaned() public view returns(User[] memory _clearmassive){
+    //     return temp;
+    // }
+
+    // function get_data_cleaned() public view returns(User[] memory _clearmassive){
+    //     return users;
+    // }
+
+
+    function clear_massive() public {
+        for(uint i = 0; i < temp.length; i++){
+            if (temp[i]._address != 0x0000000000000000000000000000000000000000){
+                users.push(temp[i]);
+            }
+        }
+    }
+
+
+    // function amount_to_transfer() public view returns(uint number){
+    //     uint amount = users[0].percentage * income / 100;
+    //     return amount;
+    // }
+    
+    function transfer() public payable{
+        for(uint i = 0; i < users.length; i++){
+            sum += users[i].percentage;
+        }
+        if (sum < 100){
+            for(uint j = 0; j < users.length; j++){
+                uint amount = users[j].percentage * income / 100;
+                TransferTo(users[j]._address, amount);
+            }
+        }
+        if (sum > 100){
+            require(sum <= 100, "You must give percentages, which sum will give 100%");
+        }
+    }
+
+
+    function TransferTo(address payable _to, uint _howmuch) payable public onlyOwner {
+        _to.transfer(_howmuch);
+        emit MoneyTransfered(_to, _howmuch);
+    }
+
+    fallback () external payable {
+        emit ValueReceived(msg.sender, msg.value);
+        income = msg.value;
+    }
+
+    receive() external payable {
+        emit ValueReceived(msg.sender, msg.value);
+        income = msg.value;
+        clear_massive();
+        transfer();
+    }
+}
